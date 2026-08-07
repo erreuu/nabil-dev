@@ -1,0 +1,278 @@
+document.addEventListener("DOMContentLoaded", () => {
+
+    /* ==========================================================================
+       0. CAPABILITY CHECK
+       Pointer-driven effects (custom cursor, parallax, 3D tilt, magnetic
+       button) only make sense with a real mouse. Skipping them on touch
+       devices, small screens, and prefers-reduced-motion isn't only about
+       being nice to accessibility settings — the old cursor code in
+       particular got expensive fast, and touch input could fire mousemove
+       in ways that made it worse, not better. Checked once on load, and
+       reuses the same 768px breakpoint already used elsewhere in the CSS.
+       ========================================================================== */
+    const isMobileViewport = window.matchMedia("(max-width: 768px)").matches;
+    const isCoarsePointer = window.matchMedia("(hover: none), (pointer: coarse)").matches;
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const enablePointerFX = !isMobileViewport && !isCoarsePointer && !prefersReducedMotion;
+
+    /* ==========================================================================
+       1. SHARED POINTER STATE + SINGLE rAF LOOP
+       Every mouse-driven effect below just updates `pointer` or reads it.
+       ONE requestAnimationFrame loop applies all of them once per frame.
+       This is the main fix for the lag: before, cursor / parallax / tilt
+       each did their own DOM write directly inside the mousemove event,
+       so a fast mouse movement (or a high-polling-rate mouse) could queue
+       up far more style writes than the screen can actually show.
+       ========================================================================== */
+    const pointer = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const frameTasks = [];
+
+    if (enablePointerFX) {
+        window.addEventListener("mousemove", (e) => {
+            pointer.x = e.clientX;
+            pointer.y = e.clientY;
+        }, { passive: true });
+
+        (function tick() {
+            frameTasks.forEach((task) => task());
+            requestAnimationFrame(tick);
+        })();
+    }
+
+    /* ==========================================================================
+       2. CUSTOM CURSOR
+       Two changes from the original:
+       - Moves via `transform` instead of `left`/`top`. Changing left/top on
+         a fixed element forces the browser to recompute layout; transform
+         is compositor-only and never touches layout or paint.
+       - The trailing outline eases toward the pointer inside the shared
+         rAF loop instead of calling `.animate()` on every single mousemove.
+         The old code created a brand-new 500ms Web Animations API
+         animation on every mousemove event — with a mouse that fires
+         100+ of those a second, you'd end up with dozens of overlapping
+         animations all fighting to control the same element at once. That
+         stacking was the single biggest cause of the stutter.
+       ========================================================================== */
+    const cursorDot = document.querySelector(".cursor-dot");
+    const cursorOutline = document.querySelector(".cursor-outline");
+
+    if (enablePointerFX && cursorDot && cursorOutline) {
+        let outlineX = pointer.x;
+        let outlineY = pointer.y;
+
+        frameTasks.push(() => {
+            cursorDot.style.transform = `translate(${pointer.x}px, ${pointer.y}px) translate(-50%, -50%)`;
+
+            // Ease toward the pointer instead of snapping — this is what
+            // gives the outline its trailing feel, at the cost of one
+            // multiply-add per frame instead of a whole animation object.
+            outlineX += (pointer.x - outlineX) * 0.18;
+            outlineY += (pointer.y - outlineY) * 0.18;
+            cursorOutline.style.transform = `translate(${outlineX}px, ${outlineY}px) translate(-50%, -50%)`;
+        });
+
+        document.querySelectorAll("a, button, .tilt-element, .showcase-card").forEach((el) => {
+            el.addEventListener("mouseenter", () => cursorOutline.classList.add("hover-active"));
+            el.addEventListener("mouseleave", () => cursorOutline.classList.remove("hover-active"));
+        });
+
+        // Small tactile "press" feedback on click.
+        window.addEventListener("mousedown", () => cursorOutline.classList.add("cursor-click"));
+        window.addEventListener("mouseup", () => cursorOutline.classList.remove("cursor-click"));
+    } else if (cursorDot && cursorOutline) {
+        cursorDot.style.display = "none";
+        cursorOutline.style.display = "none";
+    }
+
+    /* ==========================================================================
+       3. 3D TILT
+       Shared by the current holo cards (.tilt-element) and any
+       .tilt-card / .card-glass markup used elsewhere (e.g. a member's own
+       page reusing the "showcase" card component). Reads the shared
+       pointer position inside the rAF loop instead of a per-card
+       mousemove listener doing the full calculation on every event.
+       ========================================================================== */
+    function initTilt(cards, { rotate = 10, targetSelector = null } = {}) {
+        cards.forEach((card) => {
+            const target = targetSelector ? card.querySelector(targetSelector) : card;
+            if (!target) return;
+
+            let hovering = false;
+
+            card.addEventListener("mouseenter", () => {
+                hovering = true;
+                target.style.transition = "none";
+            });
+
+            card.addEventListener("mouseleave", () => {
+                hovering = false;
+                target.style.transition = targetSelector
+                    ? "transform 0.6s cubic-bezier(0.16, 1, 0.3, 1)"
+                    : "transform 0.5s ease";
+                target.style.transform = targetSelector
+                    ? "rotateX(0deg) rotateY(0deg)"
+                    : "perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)";
+            });
+
+            frameTasks.push(() => {
+                if (!hovering) return;
+                const rect = card.getBoundingClientRect();
+                const x = pointer.x - rect.left;
+                const y = pointer.y - rect.top;
+                const rotateX = ((y - rect.height / 2) / (rect.height / 2)) * -rotate;
+                const rotateY = ((x - rect.width / 2) / (rect.width / 2)) * rotate;
+
+                target.style.transform = targetSelector
+                    ? `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`
+                    : `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
+            });
+        });
+    }
+
+    if (enablePointerFX) {
+        initTilt(document.querySelectorAll(".tilt-element"), { rotate: 10 });
+        initTilt(document.querySelectorAll(".tilt-card"), { rotate: 6, targetSelector: ".card-glass" });
+    }
+
+    /* ==========================================================================
+       4. MAGNETIC CTA BUTTON (new)
+       The hero button pulls slightly toward the cursor while hovered. One
+       small signature interaction rather than adding motion everywhere —
+       cheap since it only runs while this one element is hovered, and it
+       reuses the same shared pointer + rAF loop as everything else.
+       ========================================================================== */
+    const ctaButton = document.querySelector(".cta-button");
+
+    if (enablePointerFX && ctaButton) {
+        let pulling = false;
+
+        ctaButton.addEventListener("mouseenter", () => {
+            pulling = true;
+            ctaButton.classList.add("magnet-active");
+        });
+
+        ctaButton.addEventListener("mouseleave", () => {
+            pulling = false;
+            ctaButton.classList.remove("magnet-active");
+            ctaButton.style.transform = "translate(0, 0)";
+        });
+
+        frameTasks.push(() => {
+            if (!pulling) return;
+            const rect = ctaButton.getBoundingClientRect();
+            const relX = pointer.x - (rect.left + rect.width / 2);
+            const relY = pointer.y - (rect.top + rect.height / 2);
+            ctaButton.style.transform = `translate(${relX * 0.25}px, ${relY * 0.25}px)`;
+        });
+    }
+
+    /* ==========================================================================
+       5. SCROLL REVEAL
+       One reusable observer factory instead of three separate, overlapping
+       IntersectionObservers. On the previous page structure, the generic
+       ".reveal" class was being auto-applied to every <section> AND the
+       content inside those sections had its own separate reveal classes —
+       so #about and #team were animating twice, once as a whole blurred-in
+       block and again element-by-element inside it. That's removed below;
+       each element now gets exactly one reveal treatment.
+       ========================================================================== */
+    function setupReveal(selector, {
+        addHiddenClass = null,
+        visibleClass = "is-visible",
+        threshold = 0.15,
+        rootMargin = "0px 0px -50px 0px",
+        stagger = false,
+    } = {}) {
+        const elements = document.querySelectorAll(selector);
+        if (!elements.length) return;
+
+        if (addHiddenClass) {
+            elements.forEach((el) => el.classList.add(addHiddenClass));
+        }
+
+        const observer = new IntersectionObserver((entries, obs) => {
+            entries.forEach((entry, index) => {
+                if (!entry.isIntersecting) return;
+                const delay = stagger ? index * 100 : 0;
+                setTimeout(() => entry.target.classList.add(visibleClass), delay);
+                obs.unobserve(entry.target);
+            });
+        }, { threshold, rootMargin });
+
+        elements.forEach((el) => observer.observe(el));
+    }
+
+    setupReveal(".reveal-text, .reveal-fade", { addHiddenClass: "hidden-reveal" });
+    setupReveal(".reveal-card", { addHiddenClass: "hidden-reveal", stagger: true });
+    setupReveal(".reveal-up", { threshold: 0.1 });
+    // Anything manually marked up with class="reveal" elsewhere keeps working.
+    setupReveal(".reveal", { visibleClass: "visible" });
+
+    /* ==========================================================================
+       6. SCROLL PROGRESS BAR
+       Reads scroll position and writes the bar width at most once per
+       animation frame (via a `ticking` flag), instead of on every raw
+       `scroll` event. Reading scrollHeight/clientHeight can force a layout
+       recalculation, and doing that on every scroll event — at the same
+       time other code was writing to layout-affecting styles — was part
+       of what made scrolling itself feel like it was catching.
+       ========================================================================== */
+    const progressBar = document.createElement("div");
+    progressBar.className = "scroll-progress";
+    document.body.appendChild(progressBar);
+
+    let scrollTicking = false;
+
+    function updateProgress() {
+        const doc = document.documentElement;
+        const scrollable = doc.scrollHeight - doc.clientHeight;
+        const percent = scrollable > 0 ? (doc.scrollTop / scrollable) * 100 : 0;
+        progressBar.style.width = `${percent}%`;
+        scrollTicking = false;
+    }
+
+    window.addEventListener("scroll", () => {
+        if (scrollTicking) return;
+        scrollTicking = true;
+        requestAnimationFrame(updateProgress);
+    }, { passive: true });
+
+    /* ==========================================================================
+       7. NAV SCROLLSPY (new)
+       Highlights whichever nav link matches the section currently in view.
+       Purely scroll/IntersectionObserver-driven, so it stays on even on
+       mobile (useful again once the nav gets a mobile menu).
+       ========================================================================== */
+    const navLinks = document.querySelectorAll(".nav-links a");
+    const spySections = [...navLinks]
+        .map((link) => document.querySelector(link.getAttribute("href")))
+        .filter(Boolean);
+
+    if (navLinks.length && spySections.length) {
+        const spyObserver = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                const link = document.querySelector(`.nav-links a[href="#${entry.target.id}"]`);
+                if (link) link.classList.toggle("is-active", entry.isIntersecting);
+            });
+        }, { rootMargin: "-40% 0px -55% 0px" });
+
+        spySections.forEach((section) => spyObserver.observe(section));
+    }
+
+    /* ==========================================================================
+       8. SHOWCASE CARD CLICK FEEDBACK
+       Kept for .showcase-card markup (e.g. an individual member page using
+       this same script) — inert on the current index.html, which uses
+       .holo-card instead.
+       ========================================================================== */
+    document.querySelectorAll(".showcase-card").forEach((card) => {
+        const viewBtn = card.querySelector(".view-identity-btn");
+        if (!viewBtn) return;
+
+        viewBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            card.classList.add("card-clicked");
+            setTimeout(() => card.classList.remove("card-clicked"), 300);
+        });
+    });
+});

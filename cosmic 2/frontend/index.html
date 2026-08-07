@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portofolio Agit</title>
+    
+    <!-- Google Fonts: Literata & DM Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500&family=Literata:opsz,wght@7..72,200..900&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Custom Interactive Cursor -->
+    <div class="cursor-dot"></div>
+    <div class="cursor-outline"></div>
+
+    <!-- Ambient Background Glows -->
+    <div class="ambient-glow glow-cyan"></div>
+    <div class="ambient-glow glow-purple"></div>
+
+    <!-- Navigation -->
+    <nav class="glass-nav">
+        <div class="nav-brand">KELOMPOK<span>2</span></div>
+        <ul class="nav-links">
+            <li><a href="#hero">Intro</a></li>
+            <li><a href="#about">About</a></li>
+            <li><a href="#team">The Team</a></li>
+        </ul>
+    </nav>
+
+    <!-- Hero Section -->
+    <header id="hero" class="hero-section">
+        <!-- Giant background typography inspired by Oryzo reference —
+             two copies side by side so the marquee scroll (style.css) loops seamlessly -->
+        <h1 class="hero-bg-text" aria-hidden="true">
+            <div class="hero-bg-track">
+                <span>KELOMPOK 2</span>
+                <span>KELOMPOK 2</span>
+            </div>
+        </h1>
+        
+        <div class="hero-content">
+            <div class="hero-main-text reveal-text">
+                <p class="subtitle">SEVEN MINDS. ONE DIGITAL SPACE.</p>
+                <h2>Portofolio<br>Agit.</h2>
+            </div>
+            
+            <!-- Asymmetric detail panel -->
+            <div class="hero-side-panel glass-panel reveal-fade">
+                <p class="panel-title">DESIGNED BY THE INITIATIVE</p>
+                <p class="panel-desc">Every member has a unique story and contribution. This is a collection of our ideas, creativity, and dedication throughout the learning process.</p>
+            </div>
+            
+            <a href="#about" class="cta-button reveal-fade">
+                <span>Explore the Project</span>
+                <div class="cta-glow"></div>
+            </a>
+        </div>
+        
+        <div class="scroll-indicator">
+            <span class="scroll-text">SCROLL TO CONTINUE</span>
+            <div class="scroll-line"></div>
+        </div>
+    </header>
+
+    <!-- About Section -->
+    <section id="about" class="about-section">
+        <div class="about-container">
+            <h3 class="section-heading reveal-text">The Project</h3>
+            <p class="about-lead reveal-fade">
+                Website ini bukan hanya berisi profile setiap anggota, tetapi juga menjadi representasi pejalanan kami sebagai satu tim.
+                Di balik setiap halaman terdapat proses belajar dan kreativitas yang kami bangun bersama untuk menghasilkan karya yang bermakna.
+            </p>
+        </div>
+    </section>
+
+    <!-- Team Section -->
+    <section id="team" class="team-section">
+        <h3 class="section-heading reveal-text center-align">Meet Our Team</h3>
+        
+        <!-- Holographic Cards Grid -->
+        <div class="team-grid">
+            
+            <!-- Member 1 -->
+            <a href="members/nabil/nabil.html" class="holo-card tilt-element reveal-card">
+                <div class="card-border"></div>
+                <div class="card-content">
+                    <span class="member-num">01</span>
+                    <h4 class="member-name">Member 1</h4>
+                    <p class="member-role">View Identity &rarr;</p>
+                </div>
+            </a>
+
+            <!-- Member 2 -->
+            <a href="#" class="holo-card tilt-element reveal-card">
+                <div class="card-border"></div>
+                <div class="card-content">
+                    <span class="member-num">02</span>
+                    <h4 class="member-name">Member 2</h4>
+                    <p class="member-role">View Identity &rarr;</p>
+                </div>
+            </a>
+
+            <!-- Member 3 -->
+            <a href="#" class="holo-card tilt-element reveal-card">
+                <div class="card-border"></div>
+                <div class="card-content">
+                    <span class="member-num">03</span>
+                    <h4 class="member-name">Member 3</h4>
+                    <p class="member-role">View Identity &rarr;</p>
+                </div>
+            </a>
+
+            <!-- Member 4 -->
+            <a href="#" class="holo-card tilt-element reveal-card">
+                <div class="card-border"></div>
+                <div class="card-content">
+                    <span class="member-num">04</span>
+                    <h4 class="member-name">Member 4</h4>
+                    <p class="member-role">View Identity &rarr;</p>
+                </div>
+            </a>
+
+            <!-- Member 5 -->
+            <a href="#" class="holo-card tilt-element reveal-card">
+                <div class="card-border"></div>
+                <div class="card-content">
+                    <span class="member-num">05</span>
+                    <h4 class="member-name">Member 5</h4>
+                    <p class="member-role">View Identity &rarr;</p>
+                </div>
+            </a>
+
+            <!-- Member 6 -->
+            <a href="#" class="holo-card tilt-element reveal-card">
+                <div class="card-border"></div>
+                <div class="card-content">
+                    <span class="member-num">06</span>
+                    <h4 class="member-name">Member 6</h4>
+                    <p class="member-role">View Identity &rarr;</p>
+                </div>
+            </a>
+
+            <!-- Member 7 -->
+            <a href="#" class="holo-card tilt-element reveal-card">
+                <div class="card-border"></div>
+                <div class="card-content">
+                    <span class="member-num">07</span>
+                    <h4 class="member-name">Member 7</h4>
+                    <p class="member-role">View Identity &rarr;</p>
+                </div>
+            </a>
+
+        </div>
+    </section>
+    <script src="java script/script.js"></script>
+</body>
+</html>
